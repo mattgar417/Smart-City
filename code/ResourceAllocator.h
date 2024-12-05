@@ -1,54 +1,94 @@
-#ifndef RESOURCE_ALLOCATOR_H
-#define RESOURCE_ALLOCATOR_H
+#ifndef RESOURCEALLOCATOR_H
+#define RESOURCEALLOCATOR_H
 
+#include <iostream>
 #include <vector>
+#include <map>
 #include <string>
 
-// Base struct for common attributes
-struct Resource {
-    std::string type;
-    int district;
+using namespace std;
+
+class Resource {
+public:
+    string type;
+    string district;
     double cost;
-    double importance;
+    int importance;
     double availability;
+
+    Resource(string type, string district, double cost, int importance, double availability)
+            : type(type), district(district), cost(cost), importance(importance), availability(availability) {}
+
+    virtual void display() const = 0;
 };
 
-// Extended attributes for specific resource types
-struct Electricity : public Resource {
-    double peakDemandMW;
-    double avgDemandMW;
+class Electricity : public Resource {
+public:
+    double peakDemand;
+    double averageDemand;
+
+    Electricity(string type, string district, double cost, int importance, double availability,
+                double peakDemand, double averageDemand)
+            : Resource(type, district, cost, importance, availability), peakDemand(peakDemand), averageDemand(averageDemand) {}
+
+    void display() const override {
+        cout << type << " - " << district << ": Cost: " << cost << ", Importance: " << importance
+             << ", Availability: " << availability << ", Peak Demand: " << peakDemand
+             << ", Average Demand: " << averageDemand << endl;
+    }
 };
 
-struct Water : public Resource {
-    double waterQualityPH;
+class Water : public Resource {
+public:
+    double pHLevel;
+
+    Water(string type, string district, double cost, int importance, double availability, double pHLevel)
+            : Resource(type, district, cost, importance, availability), pHLevel(pHLevel) {}
+
+    void display() const override {
+        cout << type << " - " << district << ": Cost: " << cost << ", Importance: " << importance
+             << ", Availability: " << availability << ", pH Level: " << pHLevel << endl;
+    }
 };
 
-struct Gas : public Resource {
-    double gasPressureKPa;
+class Gas : public Resource {
+public:
+    double pressure;
+    double usage;
+
+    Gas(string type, string district, double cost, int importance, double availability, double pressure, double usage)
+            : Resource(type, district, cost, importance, availability), pressure(pressure), usage(usage) {}
+
+    void display() const override {
+        cout << type << " - " << district << ": Cost: " << cost << ", Importance: " << importance
+             << ", Availability: " << availability << ", Pressure: " << pressure << ", Usage: " << usage << endl;
+    }
 };
 
-struct WasteManagement : public Resource {};
+class Waste : public Resource {
+public:
+    Waste(string type, string district, double cost, int importance, double availability)
+            : Resource(type, district, cost, importance, availability) {}
 
-// ResourceAllocator class
+    void display() const override {
+        cout << type << " - " << district << ": Cost: " << cost << ", Importance: " << importance
+             << ", Availability: " << availability << endl;
+    }
+};
+
 class ResourceAllocator {
 private:
-    std::vector<Electricity> electricityResources;
-    std::vector<Water> waterResources;
-    std::vector<Gas> gasResources;
-    std::vector<WasteManagement> wasteManagementResources;
+    map<string, vector<Resource*>> resources;
 
 public:
-    explicit ResourceAllocator(const std::string& file);
+    ResourceAllocator();
+    ~ResourceAllocator();
+    void addNewResourceType(Resource* resource);
+    void loadResources(const string& filePath);
     void allocateResources();
-    void displayAllocation() const;
-
-private:
-    void loadResources(const std::string& file);
-    void allocateElectricity();
-    void allocateWater();
-    void allocateGas();
-    void allocateWasteManagement();
+    void displayAllocation();
+    void displayResourcesByDistrict();
 };
 
-#endif // RESOURCE_ALLOCATOR_H
+#endif
 
