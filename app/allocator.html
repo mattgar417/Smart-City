@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Resource Allocator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --border2: #21262d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --dim: #484f58;
+
+    --elec: #f0a500;
+    --elec-dim: #3d2a00;
+    --water: #0ea5e9;
+    --water-dim: #002944;
+    --gas: #f97316;
+    --gas-dim: #3d1a00;
+    --waste: #22c55e;
+    --waste-dim: #002d14;
+
+    --font-display: 'Barlow Condensed', sans-serif;
+    --font-body: 'Barlow', sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+  }
+
+  .logo-icon span {
+    border-radius: 2px;
+    display: block;
+  }
+
+  .logo-icon span:nth-child(1) { background: var(--elec); }
+  .logo-icon span:nth-child(2) { background: var(--water); }
+  .logo-icon span:nth-child(3) { background: var(--waste); }
+  .logo-icon span:nth-child(4) { background: var(--gas); }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--waste);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    grid-template-rows: 1fr auto;
+    gap: 0;
+    max-height: calc(100vh - 56px);
+  }
+
+  /* ── FORM PANEL ── */
+  .form-panel {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .panel-title {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border2);
+  }
+
+  /* Type selector */
+  .type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .type-btn {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    transition: all 0.15s;
+    text-align: left;
+  }
+
+  .type-btn:hover { border-color: var(--dim); color: var(--text); }
+
+  .type-btn.active-Electricity { border-color: var(--elec); background: var(--elec-dim); color: var(--elec); }
+  .type-btn.active-Water       { border-color: var(--water); background: var(--water-dim); color: var(--water); }
+  .type-btn.active-Gas         { border-color: var(--gas); background: var(--gas-dim); color: var(--gas); }
+  .type-btn.active-Waste       { border-color: var(--waste); background: var(--waste-dim); color: var(--waste); }
+
+  .type-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-Electricity { background: var(--elec); }
+  .dot-Water       { background: var(--water); }
+  .dot-Gas         { background: var(--gas); }
+  .dot-Waste       { background: var(--waste); }
+
+  /* Fields */
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  input[type="text"],
+  input[type="number"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    padding: 8px 10px;
+    width: 100%;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+
+  input:focus { border-color: var(--dim); }
+
+  input.focus-Electricity:focus { border-color: var(--elec); }
+  input.focus-Water:focus       { border-color: var(--water); }
+  input.focus-Gas:focus         { border-color: var(--gas); }
+  input.focus-Waste:focus       { border-color: var(--waste); }
+
+  /* Slider */
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .slider-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  /* Additional fields */
+  .additional-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+  }
+
+  .additional-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  /* Add button */
+  .btn-add {
+    width: 100%;
+    padding: 11px;
+    border-radius: 6px;
+    border: none;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .btn-add:active { transform: scale(0.98); }
+  .btn-add:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-add-Electricity { background: var(--elec); color: #000; }
+  .btn-add-Water       { background: var(--water); color: #000; }
+  .btn-add-Gas         { background: var(--gas); color: #000; }
+  .btn-add-Waste       { background: var(--waste); color: #000; }
+  .btn-add-none        { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── QUEUE + RESULTS PANEL ── */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .queue-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+  }
+
+  .queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border2);
+    margin-bottom: 1rem;
+  }
+
+  .queue-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .queue-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    gap: 12px;
+    color: var(--dim);
+  }
+
+  .queue-empty-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    width: 36px;
+    opacity: 0.3;
+  }
+
+  .queue-empty-grid span {
+    height: 16px;
+    border-radius: 2px;
+    display: block;
+  }
+
+  .queue-empty p {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Resource card in queue */
+  .resource-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .resource-card {
+    background: var(--surface2);
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn 0.2s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .rc-accent {
+    width: 3px;
+    border-radius: 2px;
+    align-self: stretch;
+  }
+
+  .rc-accent-Electricity { background: var(--elec); }
+  .rc-accent-Water       { background: var(--water); }
+  .rc-accent-Gas         { background: var(--gas); }
+  .rc-accent-Waste       { background: var(--waste); }
+
+  .rc-body { min-width: 0; }
+
+  .rc-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+
+  .rc-type {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .rc-type-Electricity { color: var(--elec); }
+  .rc-type-Water       { color: var(--water); }
+  .rc-type-Gas         { color: var(--gas); }
+  .rc-type-Waste       { color: var(--waste); }
+
+  .rc-district {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .rc-meta {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .rc-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .rc-stat-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .rc-stat-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .btn-remove {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--dim);
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .btn-remove:hover { border-color: #c0392b; color: #e74c3c; background: #1a0a09; }
+
+  /* ── SUBMIT BAR ── */
+  .submit-bar {
+    border-top: 1px solid var(--border);
+    padding: 1rem 1.5rem;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-submit {
+    flex: 1;
+    padding: 11px 20px;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-submit:disabled { opacity: 0.25; cursor: not-allowed; }
+  .btn-submit:not(:disabled):hover { opacity: 0.88; }
+  .btn-submit:not(:disabled):active { transform: scale(0.98); }
+
+  .btn-clear-all {
+    padding: 11px 16px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-clear-all:hover { border-color: var(--dim); color: var(--text); }
+
+  /* ── RESULTS OVERLAY ── */
+  .results-panel {
+    display: none;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1.5rem;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .results-panel.visible { display: block; }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .results-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .btn-close-results {
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px 6px;
+    transition: color 0.15s;
+  }
+
+  .btn-close-results:hover { color: var(--text); }
+
+  .results-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .result-row {
+    display: grid;
+    grid-template-columns: 120px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border-radius: 5px;
+    border: 1px solid var(--border2);
+    animation: slideIn 0.2s ease;
+  }
+
+  .result-district {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .result-resource {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .result-amount {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--waste);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .result-bar-wrap {
+    grid-column: 1 / -1;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .result-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+
+  .result-bar-Electricity { background: var(--elec); }
+  .result-bar-Water       { background: var(--water); }
+  .result-bar-Gas         { background: var(--gas); }
+  .result-bar-Waste       { background: var(--waste); }
+
+  /* Error / loading states */
+  .status-msg {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 5px;
+    border: 1px solid;
+  }
+
+  .status-msg.error   { color: #f87171; background: #200a0a; border-color: #500; }
+  .status-msg.loading { color: var(--muted); background: var(--surface2); border-color: var(--border2); }
+  .status-msg.success { color: var(--waste); background: #001a0a; border-color: #0a3d1f; }
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--dim);
+    border-top-color: var(--text);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: -2px;
+    margin-right: 8px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* API config modal */
+  .config-bar {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border2);
+    padding: 8px 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .config-label { color: var(--dim); }
+
+  .config-input {
+    flex: 1;
+    max-width: 320px;
+    padding: 4px 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+  }
+
+  .config-input:focus { border-color: var(--dim); color: var(--text); }
+
+  /* Importance stars */
+  .importance-row {
+    display: flex;
+    gap: 4px;
+  }
+
+  .imp-star {
+    width: 28px;
+    height: 28px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--dim);
+    transition: all 0.12s;
+  }
+
+  .imp-star:hover,
+  .imp-star.active { background: var(--border); color: var(--text); }
+
+  @media (max-width: 800px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto; }
+    .form-panel { border-right: none; border-bottom: 1px solid var(--border); max-height: 55vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    Smart Resource Allocator
+  </div>
+  <div class="status-bar">
+    <div class="status-dot"></div>
+    <span>SYSTEM ONLINE</span>
+  </div>
+</header>
+
+<div class="config-bar">
+  <span class="config-label">API_ENDPOINT</span>
+  <input class="config-input" id="api-url" type="text" value="http://localhost:8000/allocate" spellcheck="false" />
+  <span class="config-label" id="api-status" style="color: var(--dim);">not connected</span>
+</div>
+
+<main>
+  <!-- FORM PANEL -->
+  <div class="form-panel">
+    <p class="panel-title">Add Resource</p>
+
+    <!-- Type selector -->
+    <div>
+      <label style="display:block; margin-bottom:8px;">Resource Type</label>
+      <div class="type-grid">
+        <button class="type-btn" data-type="Electricity" onclick="selectType('Electricity')">
+          <span class="type-dot dot-Electricity"></span> Electricity
+        </button>
+        <button class="type-btn" data-type="Water" onclick="selectType('Water')">
+          <span class="type-dot dot-Water"></span> Water
+        </button>
+        <button class="type-btn" data-type="Gas" onclick="selectType('Gas')">
+          <span class="type-dot dot-Gas"></span> Gas
+        </button>
+        <button class="type-btn" data-type="Waste" onclick="selectType('Waste')">
+          <span class="type-dot dot-Waste"></span> Waste
+        </button>
+      </div>
+    </div>
+
+    <!-- District -->
+    <div class="field">
+      <label for="f-district">District Name</label>
+      <input type="text" id="f-district" placeholder="e.g. North District" />
+    </div>
+
+    <!-- Cost + Importance -->
+    <div class="field-row">
+      <div class="field">
+        <label for="f-cost">Cost ($/unit)</label>
+        <input type="number" id="f-cost" placeholder="0.00" min="0" step="0.01" />
+      </div>
+      <div class="field">
+        <label>Importance (1–10)</label>
+        <div class="importance-row" id="importance-row"></div>
+        <input type="hidden" id="f-importance" value="5" />
+      </div>
+    </div>
+
+    <!-- Availability slider -->
+    <div class="field">
+      <label>Availability</label>
+      <div class="slider-wrap">
+        <input type="range" id="f-avail" min="0" max="1" step="0.01" value="0.75"
+               oninput="document.getElementById('avail-val').textContent = parseFloat(this.value).toFixed(2)" />
+        <span class="slider-val" id="avail-val">0.75</span>
+      </div>
+    </div>
+
+    <!-- Additional fields (dynamic) -->
+    <div id="additional-wrap" style="display:none;">
+      <div class="additional-fields" id="additional-fields"></div>
+    </div>
+
+    <!-- Add button -->
+    <button class="btn-add btn-add-none" id="btn-add" onclick="addResource()">
+      Select a resource type
+    </button>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="queue-panel">
+      <div class="queue-header">
+        <p class="panel-title" style="border:none; padding:0;">Resource Queue</p>
+        <span class="queue-count" id="queue-count">0 resources</span>
+      </div>
+
+      <!-- Empty state -->
+      <div class="queue-empty" id="queue-empty">
+        <div class="queue-empty-grid">
+          <span style="background:var(--elec)"></span>
+          <span style="background:var(--water)"></span>
+          <span style="background:var(--waste)"></span>
+          <span style="background:var(--gas)"></span>
+        </div>
+        <p>No resources added yet</p>
+        <p style="color:var(--dim); font-size:11px;">Fill the form on the left to begin</p>
+      </div>
+
+      <div class="resource-list" id="resource-list"></div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-panel" id="results-panel">
+      <div class="results-header">
+        <span class="results-title">Allocation Results</span>
+        <button class="btn-close-results" onclick="closeResults()">×</button>
+      </div>
+      <div id="results-body"></div>
+    </div>
+
+    <!-- Submit bar -->
+    <div class="submit-bar">
+      <button class="btn-clear-all" onclick="clearAll()">Clear All</button>
+      <button class="btn-submit" id="btn-submit" onclick="submitResources()" disabled>
+        Run Allocation
+      </button>
+    </div>
+  </div>
+</main>
+
+<script>
+  let selectedType = null;
+  let resources = [];
+
+  const additionalConfig = {
+    Electricity: [
+      { id: 'add1', label: 'Peak Demand (kW)', placeholder: '120.0' },
+      { id: 'add2', label: 'Average Demand (kW)', placeholder: '80.0' }
+    ],
+    Water: [
+      { id: 'add1', label: 'pH Level', placeholder: '7.2' }
+    ],
+    Gas: [
+      { id: 'add1', label: 'Pressure (PSI)', placeholder: '45.0' },
+      { id: 'add2', label: 'Usage Rate', placeholder: '30.0' }
+    ],
+    Waste: []
+  };
+
+  // Build importance stars
+  (function buildStars() {
+    const row = document.getElementById('importance-row');
+    const hidden = document.getElementById('f-importance');
+    for (let i = 1; i <= 10; i++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'imp-star' + (i <= 5 ? ' active' : '');
+      btn.textContent = i;
+      btn.dataset.val = i;
+      btn.onclick = () => {
+        hidden.value = i;
+        document.querySelectorAll('.imp-star').forEach(s => {
+          s.classList.toggle('active', parseInt(s.dataset.val) <= i);
+        });
+      };
+      row.appendChild(btn);
+    }
+  })();
+
+  function selectType(type) {
+    selectedType = type;
+
+    // Update type buttons
+    document.querySelectorAll('.type-btn').forEach(b => {
+      b.className = 'type-btn';
+      if (b.dataset.type === type) b.classList.add('active-' + type);
+    });
+
+    // Update input focus class
+    document.querySelectorAll('input[type="text"], input[type="number"]').forEach(inp => {
+      inp.className = inp.className.replace(/focus-\w+/g, '');
+      inp.classList.add('focus-' + type);
+    });
+
+    // Show/build additional fields
+    const config = additionalConfig[type] || [];
+    const wrap = document.getElementById('additional-wrap');
+    const fields = document.getElementById('additional-fields');
+
+    if (config.length > 0) {
+      fields.innerHTML = '<p class="additional-label">' + type + '-specific parameters</p>';
+      config.forEach(f => {
+        fields.innerHTML += `
+          <div class="field">
+            <label for="${f.id}">${f.label}</label>
+            <input type="number" id="${f.id}" placeholder="${f.placeholder}" step="0.1" class="focus-${type}" />
+          </div>`;
+      });
+      wrap.style.display = 'block';
+    } else {
+      wrap.style.display = 'none';
+    }
+
+    // Update add button
+    const btn = document.getElementById('btn-add');
+    btn.className = 'btn-add btn-add-' + type;
+    btn.textContent = '+ Add ' + type + ' Resource';
+    btn.disabled = false;
+  }
+
+  function addResource() {
+    if (!selectedType) return;
+
+    const district = document.getElementById('f-district').value.trim();
+    const cost = parseFloat(document.getElementById('f-cost').value);
+    const importance = parseInt(document.getElementById('f-importance').value);
+    const availability = parseFloat(document.getElementById('f-avail').value);
+
+    if (!district) { shake('f-district'); return; }
+    if (isNaN(cost) || cost < 0) { shake('f-cost'); return; }
+
+    const config = additionalConfig[selectedType] || [];
+    let additional1 = null, additional2 = null;
+
+    if (config[0]) {
+      additional1 = parseFloat(document.getElementById('add1').value);
+      if (config[0] && isNaN(additional1)) { shake('add1'); return; }
+    }
+    if (config[1]) {
+      additional2 = parseFloat(document.getElementById('add2').value);
+      if (config[1] && isNaN(additional2)) { shake('add2'); return; }
+    }
+
+    const resource = { type: selectedType, district, cost, importance, availability, additional1, additional2 };
+    resources.push(resource);
+    renderQueue();
+    resetForm();
+  }
+
+  function shake(id) {
+    const el = document.getElementById(id);
+    el.style.borderColor = '#e74c3c';
+    el.style.animation = 'none';
+    setTimeout(() => {
+      el.style.animation = '';
+      el.focus();
+    }, 10);
+    setTimeout(() => { el.style.borderColor = ''; }, 1200);
+  }
+
+  function resetForm() {
+    document.getElementById('f-district').value = '';
+    document.getElementById('f-cost').value = '';
+    document.getElementById('f-avail').value = '0.75';
+    document.getElementById('avail-val').textContent = '0.75';
+    document.getElementById('f-importance').value = '5';
+    document.querySelectorAll('.imp-star').forEach(s => {
+      s.classList.toggle('active', parseInt(s.dataset.val) <= 5);
+    });
+    const add1 = document.getElementById('add1');
+    const add2 = document.getElementById('add2');
+    if (add1) add1.value = '';
+    if (add2) add2.value = '';
+  }
+
+  function removeResource(idx) {
+    resources.splice(idx, 1);
+    renderQueue();
+  }
+
+  function clearAll() {
+    resources = [];
+    renderQueue();
+    closeResults();
+  }
+
+  function renderQueue() {
+    const list = document.getElementById('resource-list');
+    const empty = document.getElementById('queue-empty');
+    const count = document.getElementById('queue-count');
+    const submitBtn = document.getElementById('btn-submit');
+
+    count.textContent = resources.length + ' resource' + (resources.length !== 1 ? 's' : '');
+    submitBtn.disabled = resources.length === 0;
+    empty.style.display = resources.length === 0 ? 'flex' : 'none';
+    list.style.display = resources.length === 0 ? 'none' : 'flex';
+
+    list.innerHTML = '';
+    resources.forEach((r, i) => {
+      const card = document.createElement('div');
+      card.className = 'resource-card';
+      card.innerHTML = `
+        <div class="rc-accent rc-accent-${r.type}"></div>
+        <div class="rc-body">
+          <div class="rc-top">
+            <span class="rc-type rc-type-${r.type}">${r.type}</span>
+            <span class="rc-district">— ${r.district}</span>
+          </div>
+          <div class="rc-meta">
+            <div class="rc-stat">
+              <span class="rc-stat-label">Cost</span>
+              <span class="rc-stat-val">$${r.cost.toFixed(2)}</span>
+            </div>
+            <div class="rc-stat">
+              <span class="rc-stat-label">Importance</span>
+              <span class="rc-stat-val">${r.importance}/10</span>
+            </div>
+            <div class="rc-stat">
+              <span class="rc-stat-label">Availability</span>
+              <span class="rc-stat-val">${r.availability.toFixed(2)}</span>
+            </div>
+            ${r.additional1 !== null ? `<div class="rc-stat">
+              <span class="rc-stat-label">${additionalConfig[r.type][0]?.label || 'Add1'}</span>
+              <span class="rc-stat-val">${r.additional1.toFixed(1)}</span>
+            </div>` : ''}
+          </div>
+        </div>
+        <button class="btn-remove" onclick="removeResource(${i})" title="Remove">×</button>`;
+      list.appendChild(card);
+    });
+  }
+
+  async function submitResources() {
+    const apiUrl = document.getElementById('api-url').value.trim();
+    const resultsPanel = document.getElementById('results-panel');
+    const resultsBody = document.getElementById('results-body');
+    const submitBtn = document.getElementById('btn-submit');
+    const apiStatus = document.getElementById('api-status');
+
+    resultsPanel.classList.add('visible');
+    resultsBody.innerHTML = '<div class="status-msg loading"><span class="spinner"></span>Sending to allocator...</div>';
+    submitBtn.disabled = true;
+
+    const payload = {
+      resources: resources.map(r => {
+        const obj = {
+          type: r.type,
+          district: r.district,
+          cost: r.cost,
+          importance: r.importance,
+          availability: r.availability
+        };
+        if (r.additional1 !== null) obj.additional1 = r.additional1;
+        if (r.additional2 !== null) obj.additional2 = r.additional2;
+        return obj;
+      })
+    };
+
+    try {
+      const resp = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        throw new Error(err.detail || 'HTTP ' + resp.status);
+      }
+
+      const data = await resp.json();
+      apiStatus.textContent = 'connected';
+      apiStatus.style.color = 'var(--waste)';
+
+      renderResults(data);
+    } catch (e) {
+      apiStatus.textContent = 'error';
+      apiStatus.style.color = '#f87171';
+      resultsBody.innerHTML = `<div class="status-msg error">Error: ${e.message}</div>`;
+    } finally {
+      submitBtn.disabled = resources.length === 0;
+    }
+  }
+
+  function renderResults(data) {
+    const body = document.getElementById('results-body');
+
+    // Parse the allocation text from C++:
+    // "District: X, Resource: Y, Amount: Z\n..."
+    const lines = (data.allocation || '').split('\\n').filter(l => l.includes('District:'));
+
+    if (lines.length === 0) {
+      body.innerHTML = '<div class="status-msg success">✓ Allocation complete — ' +
+        data.resources_loaded + ' resources processed, ' + data.resources_skipped + ' skipped.</div>';
+      return;
+    }
+
+    let html = `<div class="status-msg success" style="margin-bottom:12px">
+      ✓ ${data.resources_loaded} resources allocated · ${data.resources_skipped} skipped
+    </div><div class="results-grid">`;
+
+    const allAmounts = lines.map(l => {
+      const m = l.match(/Amount:\s*([\d.]+)/);
+      return m ? parseFloat(m[1]) : 0;
+    });
+    const maxAmt = Math.max(...allAmounts, 0.001);
+
+    lines.forEach((line, i) => {
+      const dm = line.match(/District:\s*([^,]+)/);
+      const rm = line.match(/Resource:\s*([^,]+)/);
+      const am = line.match(/Amount:\s*([\d.]+)/);
+      if (!dm || !rm || !am) return;
+
+      const district = dm[1].trim();
+      const resource = rm[1].trim();
+      const amount = parseFloat(am[1]);
+      const pct = Math.round((amount / maxAmt) * 100);
+
+      html += `<div class="result-row">
+        <span class="result-district">${district}</span>
+        <span class="result-resource rc-type-${resource}">${resource}</span>
+        <span class="result-amount">${amount.toFixed(2)} units</span>
+        <div class="result-bar-wrap">
+          <div class="result-bar result-bar-${resource}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+    });
+
+    html += '</div>';
+    body.innerHTML = html;
+  }
+
+  function closeResults() {
+    document.getElementById('results-panel').classList.remove('visible');
+    document.getElementById('results-body').innerHTML = '';
+  }
+
+  // Ping API on load to show connection status
+  (async function checkApi() {
+    const apiStatus = document.getElementById('api-status');
+    try {
+      const r = await fetch(document.getElementById('api-url').value.replace('/allocate', '/health'),
+        { method: 'GET', signal: AbortSignal.timeout(2000) });
+      if (r.ok) {
+        apiStatus.textContent = 'connected';
+        apiStatus.style.color = 'var(--waste)';
+      }
+    } catch { /* stays 'not connected' */ }
+  })();
+</script>
+</body>
+</html>
